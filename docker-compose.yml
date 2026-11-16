@@ -1,0 +1,36 @@
+﻿services:
+  db:
+    image: postgres:15-alpine
+    container_name: omnifit_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: omnifit_user
+      POSTGRES_PASSWORD: omnifit_dev_password
+      POSTGRES_DB: omnifit_sync
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omnifit_user -d omnifit_sync"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: omnifit_api
+    ports:
+      - "8000:8080"
+    environment:
+      DATABASE_URL: postgresql://omnifit_user:omnifit_dev_password@db:5432/omnifit_sync
+      SEED_DEV_USER: "true"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8080 --reload
+
+volumes:
+  postgres_data:
