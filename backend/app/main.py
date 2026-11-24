@@ -5,7 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, SessionLocal
 from app.models.orm_models import Base, User, UserRole
-from app.routers import ingest
+from app.routers import auth, ingest
+from app.services.security import hash_password
 
 
 @asynccontextmanager
@@ -17,8 +18,8 @@ async def lifespan(app: FastAPI):
                 db.add(
                     User(
                         id=1,
-                        email="athlete.dev@omnifitsync.local",
-                        password_hash="dev_placeholder_hash",
+                        email="athlete.dev@omnifitsync.com",
+                        password_hash=hash_password("OmniFit#2026"),
                         role=UserRole.ATHLETE,
                         is_verified=True,
                     )
@@ -29,7 +30,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.2.0",
+    version="0.4.0",
     lifespan=lifespan,
 )
 
@@ -41,9 +42,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 app.include_router(ingest.router)
+app.include_router(ingest.secured_upload_router)
 
 
 @app.get("/health", tags=["System"])
 def health_check():
-    return {"status": "healthy", "service": settings.app_name}
+    return {"status": "healthy", "service": settings.app_name, "version": "0.4.0"}
+
